@@ -25,31 +25,28 @@ pub fn execution_order(mut tasks: Vec<Task>) -> Vec<u64> {
     tasks.sort_by_key(|task| task.queued_at);
 
     let mut time = 0_u32;
-
     let mut q: BTreeMap<u32, Task> = BTreeMap::new();
 
-    // while there are tasks to execute or tasks to queue
-    while !q.is_empty() || !tasks.is_empty() {
-        // execute any items in the queue
-        while let Some(current_task) = remove_first(&mut q) {
-            time += current_task.execution_duration;
-            executed.push(current_task.id);
-        }
-
-        // if there are any tasks that were queued before or during the current time range
-        // then add then to the queue
-        if let Some(index) = tasks.iter().rposition(|task| task.queued_at <= time) {
-            q.extend(
+    // while there are still tasks to queue & execute
+    while let Some(task) = tasks.first() {
+        // look for any tasks with `queued_at` before/during the current time
+        match tasks.iter().rposition(|task| task.queued_at <= time) {
+            // add any tasks queued before/during the current time to the queue for execution
+            Some(index) => q.extend(
                 tasks
                     .drain(..index + 1)
                     .into_iter()
                     .map(|task| (task.execution_duration, task)),
-            );
+            ),
+            // otherwise, no tasks queued before this time range
+            // so update time to match next task b/c computer is currently idle
+            None => time = task.queued_at,
         }
-        // otherwise, if there are still tasks waiting to be queued (i.e., computer is idle)
-        // then update time to match that next task's queue time
-        else if let Some(task) = tasks.first() {
-            time = task.queued_at;
+
+        // execute any items in the queue
+        while let Some(current_task) = remove_first(&mut q) {
+            time += current_task.execution_duration;
+            executed.push(current_task.id);
         }
     }
 
