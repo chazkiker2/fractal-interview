@@ -28,23 +28,24 @@ pub fn execution_order(mut tasks: Vec<Task>) -> Vec<u64> {
     let mut q: BTreeMap<(u32, u64), Task> = BTreeMap::new();
 
     // while there are still tasks to queue & execute
-    while let Some(task) = tasks.first() {
+    while !tasks.is_empty() || !q.is_empty() {
         // look for any tasks with `queued_at` before/during the current time
-        match tasks.iter().rposition(|task| task.queued_at <= time) {
-            // add any tasks queued before/during the current time to the queue for execution
-            Some(index) => q.extend(
-                tasks
-                    .drain(..index + 1)
-                    .into_iter()
-                    .map(|task| ((task.execution_duration, task.id), task)),
-            ),
-            // otherwise, no tasks queued before this time range
-            // so update time to match next task b/c computer is currently idle
-            None => time = task.queued_at,
+        if !tasks.is_empty() {
+            match tasks.iter().rposition(|task| task.queued_at <= time) {
+                // add any tasks queued before/during the current time to the queue for execution
+                Some(index) => q.extend(
+                    tasks
+                        .drain(..index + 1)
+                        .into_iter()
+                        .map(|task| ((task.execution_duration, task.id), task)),
+                ),
+                // otherwise, no tasks queued before this time range
+                // so update time to match next task b/c computer is currently idle
+                None => time = tasks.first().unwrap().queued_at,
+            }
         }
-
         // execute any items in the queue
-        while let Some(current_task) = remove_first(&mut q) {
+        if let Some(current_task) = remove_first(&mut q) {
             time += current_task.execution_duration;
             executed.push(current_task.id);
         }
@@ -205,6 +206,56 @@ mod tests {
         ];
 
         assert_eq!(execution_order(tasks), vec![42, 43]);
+    }
+
+    #[test]
+    fn task_inserted_into_queue() {
+        // 0...
+        //      queue 42
+        //                  start 42
+        // 1...
+        //      queue 43
+        // 2...
+        //      queue 44
+        // 3...
+        //                              exec 42
+        //                  start 43
+        // 4...
+        //
+        // 5...
+        //      queue 45
+        // 6...
+        //                              exec 43
+        //                  start 44
+        //                              exec 45
+        // 7...
+        //
+        // 8...
+        //                  exec 44
+        let tasks = vec![
+            Task {
+                id: 42,
+                queued_at: 0,
+                execution_duration: 3,
+            },
+            Task {
+                id: 43,
+                queued_at: 1,
+                execution_duration: 5,
+            },
+            Task {
+                id: 44,
+                queued_at: 2,
+                execution_duration: 6,
+            },
+            Task {
+                id: 45,
+                queued_at: 5,
+                execution_duration: 1,
+            },
+        ];
+
+        assert_eq!(execution_order(tasks), vec![42, 43, 45, 44]);
     }
 }
 
