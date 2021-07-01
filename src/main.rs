@@ -25,7 +25,7 @@ pub fn execution_order(mut tasks: Vec<Task>) -> Vec<u64> {
     tasks.sort_by_key(|task| task.queued_at);
 
     let mut time = 0_u32;
-    let mut q: BTreeMap<u32, Task> = BTreeMap::new();
+    let mut q: BTreeMap<(u32, u64), Task> = BTreeMap::new();
 
     // while there are still tasks to queue & execute
     while let Some(task) = tasks.first() {
@@ -36,7 +36,7 @@ pub fn execution_order(mut tasks: Vec<Task>) -> Vec<u64> {
                 tasks
                     .drain(..index + 1)
                     .into_iter()
-                    .map(|task| (task.execution_duration, task)),
+                    .map(|task| ((task.execution_duration, task.id), task)),
             ),
             // otherwise, no tasks queued before this time range
             // so update time to match next task b/c computer is currently idle
@@ -177,6 +177,29 @@ mod tests {
             Task {
                 id: 43,
                 queued_at: 3,
+                execution_duration: 3,
+            },
+        ];
+
+        assert_eq!(execution_order(tasks), vec![42, 43]);
+    }
+
+    #[test]
+    fn empty_task_list() {
+        assert_eq!(execution_order(vec![]), vec![]);
+    }
+
+    #[test]
+    fn two_items_same_queue_time_and_exec_duration() {
+        let tasks = vec![
+            Task {
+                id: 42,
+                queued_at: 1,
+                execution_duration: 3,
+            },
+            Task {
+                id: 43,
+                queued_at: 1,
                 execution_duration: 3,
             },
         ];
